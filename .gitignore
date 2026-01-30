@@ -40,3 +40,4 @@ packages/database/prisma/migrations/
 *.tmp
 *.temp
 .vercel
+.env*.local
