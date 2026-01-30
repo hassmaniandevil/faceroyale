@@ -1,0 +1,36 @@
+{
+  "name": "faceroyale",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:web": "turbo dev --filter=web",
+    "dev:server": "turbo dev --filter=game-server",
+    "dev:api": "turbo dev --filter=api",
+    "build": "turbo build",
+    "build:web": "turbo build --filter=web",
+    "test": "turbo test",
+    "test:e2e": "turbo test:e2e",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:push": "pnpm --filter @faceroyale/database db:push",
+    "db:migrate": "pnpm --filter @faceroyale/database db:migrate",
+    "db:studio": "pnpm --filter @faceroyale/database db:studio",
+    "db:seed": "pnpm --filter @faceroyale/database db:seed",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "prettier": "^3.1.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

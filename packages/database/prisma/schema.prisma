@@ -1,0 +1,456 @@
+// FaceRoyale Database Schema
+// PostgreSQL + Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============== Users & Auth ==============
+
+model User {
+  id           String    @id @default(cuid())
+  email        String?   @unique
+  passwordHash String?
+  username     String    @unique
+  isGuest      Boolean   @default(true)
+  deviceId     String?
+
+  appleId  String? @unique
+  googleId String? @unique
+
+  avatarId String @default("default")
+
+  birthDate DateTime?
+  isMinor   Boolean   @default(false)
+  isBanned  Boolean   @default(false)
+  banExpiry DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  profile         PlayerProfile?
+  inventory       InventoryItem[]
+  currencies      CurrencyWallet[]
+  battlePass      BattlePassProgress?
+  matches         MatchParticipant[]
+  clips           Clip[]
+  sentReports     Report[]             @relation("Sent")
+  receivedReports Report[]             @relation("Received")
+  friendsA        Friendship[]         @relation("A")
+  friendsB        Friendship[]         @relation("B")
+  sessions        Session[]
+  eventProgress   EventProgress[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  platform     String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============== Player Profile ==============
+
+model PlayerProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalXP Int @default(0)
+  level   Int @default(1)
+
+  matchesPlayed  Int @default(0)
+  wins           Int @default(0)
+  eliminations   Int @default(0)
+  damageDealt    Int @default(0)
+  topTenFinishes Int @default(0)
+  top3Finishes   Int @default(0)
+
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastPlayedAt  DateTime?
+
+  equippedSkin    String   @default("default")
+  equippedFilter  String?
+  equippedVictory String?
+  equippedTrail   String?
+  equippedEmotes  String[] @default([])
+
+  calibrationData Json? // Face tracking calibration
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([totalXP])
+  @@index([wins])
+}
+
+// ============== Inventory & Economy ==============
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cosmeticId  String
+  acquiredAt  DateTime @default(now())
+  acquiredVia String // "purchase", "battle_pass", "event", "reward"
+
+  @@unique([userId, cosmeticId])
+  @@index([userId])
+}
+
+model CurrencyWallet {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currencyType CurrencyType
+  amount       Int          @default(0)
+
+  @@unique([userId, currencyType])
+}
+
+enum CurrencyType {
+  COINS
+  GEMS
+  TOKENS
+}
+
+// ============== Battle Pass ==============
+
+model BattlePassSeason {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  maxTier     Int      @default(100)
+  xpPerTier   Int      @default(1000)
+  rewards     Json // Array of tier rewards
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  progress BattlePassProgress[]
+
+  @@index([isActive])
+}
+
+model BattlePassProgress {
+  id              String            @id @default(cuid())
+  userId          String            @unique
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seasonId        String
+  season          BattlePassSeason  @relation(fields: [seasonId], references: [id])
+  currentTier     Int               @default(0)
+  currentXP       Int               @default(0)
+  isPremium       Boolean           @default(false)
+  claimedFree     Int[]             @default([])
+  claimedPremium  Int[]             @default([])
+  updatedAt       DateTime          @updatedAt
+}
+
+// ============== Matches ==============
+
+model Match {
+  id          String    @id @default(cuid())
+  serverId    String
+  mode        String // "solo", "duos", "squads", "ltm_*"
+  startedAt   DateTime
+  endedAt     DateTime?
+  duration    Int? // seconds
+  playerCount Int
+  botCount    Int
+  winnerId    String?
+
+  participants MatchParticipant[]
+
+  @@index([startedAt])
+  @@index([mode])
+}
+
+model MatchParticipant {
+  id           String  @id @default(cuid())
+  matchId      String
+  match        Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?   @relation(fields: [userId], references: [id])
+  isBot        Boolean @default(false)
+  botName      String?
+  placement    Int
+  eliminations Int     @default(0)
+  damageDealt  Int     @default(0)
+  xpEarned     Int     @default(0)
+  coinsEarned  Int     @default(0)
+
+  @@index([matchId])
+  @@index([userId])
+}
+
+// ============== Clips ==============
+
+model Clip {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matchId      String?
+  storageUrl   String
+  thumbnailUrl String?
+  duration     Int // seconds
+  isPublic     Boolean  @default(false)
+  viewCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([isPublic])
+}
+
+// ============== Social ==============
+
+model Friendship {
+  id        String           @id @default(cuid())
+  userAId   String
+  userA     User             @relation("A", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User             @relation("B", fields: [userBId], references: [id], onDelete: Cascade)
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+
+  @@unique([userAId, userBId])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+// ============== Moderation ==============
+
+model Report {
+  id             String       @id @default(cuid())
+  reporterId     String
+  reporter       User         @relation("Sent", fields: [reporterId], references: [id])
+  reportedUserId String
+  reportedUser   User         @relation("Received", fields: [reportedUserId], references: [id])
+  matchId        String?
+  clipId         String?
+  reason         ReportReason
+  description    String?
+  status         ReportStatus @default(PENDING)
+  resolution     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([reportedUserId])
+  @@index([status])
+}
+
+enum ReportReason {
+  OFFENSIVE_NAME
+  OFFENSIVE_AVATAR
+  CHEATING
+  HARASSMENT
+  INAPPROPRIATE_CLIP
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+// ============== Live Ops ==============
+
+model Event {
+  id          String    @id @default(cuid())
+  name        String
+  description String
+  type        EventType
+  startDate   DateTime
+  endDate     DateTime
+  config      Json // Event-specific configuration
+  rewards     Json // Available rewards
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  progress EventProgress[]
+
+  @@index([isActive])
+  @@index([startDate])
+}
+
+enum EventType {
+  LIMITED_TIME_MODE
+  CHALLENGE_EVENT
+  SALE
+  SEASON
+  DOUBLE_XP
+}
+
+model EventProgress {
+  id             String   @id @default(cuid())
+  eventId        String
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progress       Json
+  claimedRewards String[] @default([])
+  updatedAt      DateTime @updatedAt
+
+  @@unique([eventId, userId])
+}
+
+model RemoteConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  imageUrl  String?
+  linkUrl   String?
+  priority  Int      @default(0)
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([startDate])
+}
+
+// ============== Commerce ==============
+
+model StoreItem {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  type           ItemType
+  rarity         Rarity
+  coinPrice      Int?
+  gemPrice       Int?
+  characterId    String? // If character-specific
+  assetUrl       String
+  thumbnailUrl   String?
+  isAvailable    Boolean  @default(true)
+  isFeatured     Boolean  @default(false)
+  isLimited      Boolean  @default(false)
+  availableUntil DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([type])
+  @@index([isAvailable])
+}
+
+enum ItemType {
+  CHARACTER_SKIN
+  AURA_STYLE
+  ARENA_BACKGROUND
+  KO_EFFECT
+  VICTORY_ANIMATION
+  TITLE_PLATE
+  BANNER
+  EMOTE
+}
+
+enum Rarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model Purchase {
+  id            String         @id @default(cuid())
+  userId        String
+  productId     String
+  productType   String
+  platform      String
+  transactionId String?
+  receipt       String?
+  amountPaid    Int?
+  currencyPaid  String?
+  status        PurchaseStatus @default(PENDING)
+  createdAt     DateTime       @default(now())
+  completedAt   DateTime?
+
+  @@index([userId])
+  @@index([transactionId])
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ============== Daily Challenges ==============
+
+model Challenge {
+  id          String          @id @default(cuid())
+  title       String
+  description String
+  type        ChallengeType
+  difficulty  ChallengeDifficulty
+  requirement Json // { type: "wins", value: 3 } etc.
+  coinReward  Int
+  xpReward    Int
+  isDaily     Boolean         @default(true)
+  activeDate  DateTime? // For daily challenges
+
+  progress ChallengeProgress[]
+
+  @@index([isDaily])
+  @@index([activeDate])
+}
+
+enum ChallengeType {
+  WIN_MATCH
+  TOP_10
+  TOP_3
+  ELIMINATIONS
+  DAMAGE_DEALT
+  ABILITY_USES
+  PLAY_MATCHES
+  SURVIVAL_TIME
+}
+
+enum ChallengeDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model ChallengeProgress {
+  id           String    @id @default(cuid())
+  challengeId  String
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId       String
+  currentValue Int       @default(0)
+  isCompleted  Boolean   @default(false)
+  isClaimed    Boolean   @default(false)
+  completedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([challengeId, userId])
+}
