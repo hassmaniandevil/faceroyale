@@ -1,4 +1,5 @@
 {
+  "framework": null,
   "buildCommand": "pnpm turbo build --filter=web",
   "installCommand": "corepack enable && pnpm install",
   "outputDirectory": "apps/web/.next"
