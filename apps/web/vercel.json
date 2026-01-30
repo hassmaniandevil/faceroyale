@@ -1,4 +1,6 @@
 {
+  "framework": null,
   "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=web"
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=web",
+  "outputDirectory": ".next"
 }
