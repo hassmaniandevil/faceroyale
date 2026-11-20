@@ -41,3 +41,7 @@ packages/database/prisma/migrations/
 *.temp
 .vercel
 .env*.local
+node_modules
+.env.*
+build
+dist
