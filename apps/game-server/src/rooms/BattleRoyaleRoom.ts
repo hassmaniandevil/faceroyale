@@ -40,7 +40,7 @@ interface JoinOptions {
 export class BattleRoyaleRoom extends Room<GameState> {
   private tickRate = 20; // 20 ticks per second
   private matchStartDelay = 5000; // 5 second countdown
-  private botSystem: BotSystem;
+  private botSystem!: BotSystem; // assigned in onCreate (Colyseus lifecycle)
   private config = DEFAULT_MATCH_CONFIG;
 
   onCreate(options: RoomOptions) {
@@ -144,7 +144,7 @@ export class BattleRoyaleRoom extends Room<GameState> {
     // Fill with bots if enabled
     if (this.config.botFillEnabled && playerCount < this.maxClients) {
       const botsNeeded = Math.min(20, this.maxClients - playerCount);
-      this.botSystem.spawnBots(this.state, botsNeeded, (pos) =>
+      this.botSystem.spawnBots(this.state, botsNeeded, () =>
         this.randomSpawn()
       );
     }
